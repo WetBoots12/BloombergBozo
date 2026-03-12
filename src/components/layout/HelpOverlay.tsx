@@ -2,11 +2,13 @@ import { useTerminalStore } from '../../store/terminalStore';
 
 const COMMANDS = [
   { cmd: '<TICKER>', desc: 'Look up any stock (e.g., AAPL, MSFT, NVDA)' },
-  { cmd: 'NEWS', desc: 'Show financial news feed' },
+  { cmd: 'NEWS', desc: 'Show financial news feed (RSS + API)' },
   { cmd: 'CRYPTO / CRYP', desc: 'Show cryptocurrency dashboard' },
   { cmd: 'FX / FOREX', desc: 'Show forex currency pairs' },
   { cmd: 'WLT / WATCHLIST', desc: 'Show your watchlist' },
-  { cmd: 'ECO / ECON', desc: 'Show economic indicators' },
+  { cmd: 'ECO / ECON', desc: 'Show economic indicators (DBnomics)' },
+  { cmd: 'DES / SEC / FA', desc: 'SEC EDGAR filings & company description' },
+  { cmd: 'OWN / FILINGS', desc: 'SEC EDGAR filings & ownership' },
   { cmd: 'MKT / MARKET', desc: 'Show market overview' },
   { cmd: 'HELP', desc: 'Show this help screen' },
 ];
@@ -19,14 +21,17 @@ const FUNCTION_KEYS = [
   { key: 'F5', desc: 'Forex pairs' },
   { key: 'F6', desc: 'Watchlist' },
   { key: 'F7', desc: 'Economic indicators' },
-  { key: 'F8', desc: 'Chart view' },
+  { key: 'F8', desc: 'SEC EDGAR filings' },
 ];
 
 const APIS = [
   { name: 'Finnhub', purpose: 'Stock quotes, company data, news', key: 'VITE_FINNHUB_API_KEY' },
-  { name: 'CoinGecko', purpose: 'Crypto prices & market data', key: 'No key required ✓' },
+  { name: 'CoinGecko', purpose: 'Crypto prices & market data', key: 'No key required' },
   { name: 'Alpha Vantage', purpose: 'Historical data & forex rates', key: 'VITE_ALPHA_VANTAGE_API_KEY' },
-  { name: 'Fin. Modeling Prep', purpose: 'Fundamentals & financials', key: 'VITE_FMP_API_KEY' },
+  { name: 'SEC EDGAR', purpose: 'Company filings, insider trades', key: 'No key required' },
+  { name: 'DBnomics', purpose: 'Macro data (FRED/IMF/ECB/WB)', key: 'No key required' },
+  { name: 'RSS Feeds', purpose: 'Reuters, CNBC, Yahoo, MarketWatch', key: 'No key required' },
+  { name: 'TradingView LW', purpose: 'Professional charts engine', key: 'Client-side library' },
 ];
 
 export function HelpOverlay() {

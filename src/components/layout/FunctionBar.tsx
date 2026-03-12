@@ -18,7 +18,7 @@ export function FunctionBar() {
     { key: 'F5', label: 'FX', action: () => setBottomRightPanel('forex' as PanelType) },
     { key: 'F6', label: 'WLT', action: () => setBottomRightPanel('watchlist' as PanelType) },
     { key: 'F7', label: 'ECO', action: () => setBottomRightPanel('economic' as PanelType) },
-    { key: 'F8', label: 'CHART', action: () => setTopLeftPanel('market' as PanelType) },
+    { key: 'F8', label: 'SEC', action: () => setBottomRightPanel('filings' as PanelType) },
   ];
 
   return (

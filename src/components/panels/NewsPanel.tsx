@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { Panel } from '../layout/Panel';
 import { Skeleton } from '../shared/LoadingSkeleton';
 import { useMarketNews } from '../../hooks/useNews';
+import { useRSSNews, useTickerRSS } from '../../hooks/useRSSNews';
 import { useTerminalStore } from '../../store/terminalStore';
 import { formatTimestamp } from '../../utils/formatters';
 import type { NewsItem } from '../../types/market';
 
-type NewsCategory = 'general' | 'forex' | 'crypto' | 'merger';
-const CATEGORIES: { key: NewsCategory; label: string }[] = [
-  { key: 'general', label: 'ALL' },
-  { key: 'merger', label: 'M&A' },
-  { key: 'forex', label: 'FX' },
-  { key: 'crypto', label: 'CRYPTO' },
+type NewsSource = 'all' | 'rss' | 'api' | 'ticker';
+
+const SOURCES: { key: NewsSource; label: string }[] = [
+  { key: 'all', label: 'ALL' },
+  { key: 'rss', label: 'RSS' },
+  { key: 'api', label: 'API' },
+  { key: 'ticker', label: 'TICKER' },
 ];
 
 function NewsItemRow({ item, onClick }: { item: NewsItem; onClick: () => void }) {
@@ -41,9 +43,12 @@ function NewsItemRow({ item, onClick }: { item: NewsItem; onClick: () => void })
 }
 
 export function NewsPanel() {
-  const [category, setCategory] = useState<NewsCategory>('general');
+  const [source, setSource] = useState<NewsSource>('all');
   const activeTicker = useTerminalStore(s => s.activeTicker);
-  const { data: news, isLoading } = useMarketNews(category);
+
+  const { data: apiNews, isLoading: apiLoading } = useMarketNews('general');
+  const { data: rssNews, isLoading: rssLoading } = useRSSNews();
+  const { data: tickerNews, isLoading: tickerLoading } = useTickerRSS(activeTicker);
 
   const handleNewsClick = (url: string) => {
     if (url && url !== '#') {
@@ -51,36 +56,76 @@ export function NewsPanel() {
     }
   };
 
+  // Merge and deduplicate news based on selected source
+  let displayedNews: NewsItem[] = [];
+  let isLoading = false;
+
+  switch (source) {
+    case 'rss':
+      displayedNews = rssNews || [];
+      isLoading = rssLoading;
+      break;
+    case 'api':
+      displayedNews = apiNews || [];
+      isLoading = apiLoading;
+      break;
+    case 'ticker':
+      displayedNews = tickerNews || [];
+      isLoading = tickerLoading;
+      break;
+    case 'all':
+    default: {
+      // Merge RSS + API news, deduplicate by headline similarity
+      const all = [...(rssNews || []), ...(apiNews || [])];
+      const seen = new Set<string>();
+      displayedNews = all.filter(item => {
+        // Simple dedup: use first 50 chars of headline
+        const key = item.headline.slice(0, 50).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).sort((a, b) => b.datetime - a.datetime).slice(0, 30);
+      isLoading = apiLoading && rssLoading;
+      break;
+    }
+  }
+
   return (
     <Panel
       title="NEWS"
-      subtitle={`MARKET HEADLINES`}
+      subtitle="MARKET HEADLINES"
       color="blue"
       headerRight={
         <div className="flex items-center gap-1">
-          {CATEGORIES.map(c => (
+          {SOURCES.map(s => (
             <button
-              key={c.key}
-              onClick={() => setCategory(c.key)}
+              key={s.key}
+              onClick={() => setSource(s.key)}
               className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                category === c.key
+                source === s.key
                   ? 'bg-bbg-blue text-bbg-black font-bold'
                   : 'text-bbg-muted hover:text-bbg-blue hover:bg-bbg-blue/10'
               }`}
             >
-              {c.label}
+              {s.key === 'ticker' ? `${activeTicker}` : s.label}
             </button>
           ))}
         </div>
       }
     >
       <div className="h-full overflow-y-auto">
-        {/* Ticker filter note */}
-        {activeTicker && (
-          <div className="px-3 py-1.5 bg-bbg-amber/5 border-b border-bbg-amber/20 text-xs text-bbg-amber">
-            ● RELATED TO: {activeTicker}
-          </div>
-        )}
+        {/* Source indicator */}
+        <div className="px-3 py-1.5 bg-bbg-amber/5 border-b border-bbg-amber/20 text-xs text-bbg-amber flex justify-between">
+          <span>
+            {source === 'rss' ? '● RSS FEEDS (REUTERS, CNBC, YAHOO, MARKETWATCH)' :
+             source === 'ticker' ? `● ${activeTicker} NEWS (YAHOO FINANCE RSS)` :
+             source === 'api' ? '● FINNHUB API' :
+             '● ALL SOURCES'}
+          </span>
+          {(rssNews?.length ?? 0) > 0 && source !== 'api' && (
+            <span className="text-bbg-green">RSS ACTIVE</span>
+          )}
+        </div>
 
         {isLoading ? (
           <div className="p-3 space-y-3">
@@ -91,12 +136,17 @@ export function NewsPanel() {
               </div>
             ))}
           </div>
-        ) : !news?.length ? (
+        ) : !displayedNews?.length ? (
           <div className="flex items-center justify-center h-32 text-bbg-muted text-xs">
-            NO NEWS AVAILABLE
+            <div className="text-center">
+              <div>NO NEWS AVAILABLE</div>
+              {source === 'rss' && (
+                <div className="mt-1 text-bbg-amber">RSS feeds may be blocked by CORS. Try ALL source.</div>
+              )}
+            </div>
           </div>
         ) : (
-          news.map(item => (
+          displayedNews.map(item => (
             <NewsItemRow
               key={item.id}
               item={item}

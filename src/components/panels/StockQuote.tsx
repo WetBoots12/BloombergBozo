@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
-  Tooltip, CartesianGrid, ReferenceLine,
-} from 'recharts';
 import { Panel } from '../layout/Panel';
 import { PriceChange } from '../shared/PriceChange';
+import { TVChart } from '../shared/TVChart';
 import { Skeleton } from '../shared/LoadingSkeleton';
 import { useStockQuote, useCompanyProfile } from '../../hooks/useStockQuote';
 import { useStockChart } from '../../hooks/useStockChart';
@@ -14,43 +11,20 @@ import type { TimeRange } from '../../types/market';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y'];
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{ value: number }>;
-  label?: string;
-}
-
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
-  if (!active || !payload?.[0]) return null;
-  return (
-    <div className="bg-bbg-panel border border-bbg-border px-2 py-1.5 text-xs">
-      <div className="text-bbg-muted">{label}</div>
-      <div className="text-bbg-amber font-bold">${formatPrice(payload[0].value)}</div>
-    </div>
-  );
-}
+type ChartMode = 'area' | 'candlestick';
 
 export function StockQuote() {
   const activeTicker = useTerminalStore(s => s.activeTicker);
   const [range, setRange] = useState<TimeRange>('1M');
+  const [chartMode, setChartMode] = useState<ChartMode>('area');
 
   const { data: quote, isLoading: quoteLoading } = useStockQuote(activeTicker);
   const { data: profile } = useCompanyProfile(activeTicker);
   const { data: chartData, isLoading: chartLoading } = useStockChart(activeTicker, range);
 
   const isPositive = (quote?.change ?? 0) >= 0;
-  const chartColor = isPositive ? '#00FF41' : '#FF3131';
 
-  const chartPoints = chartData?.map(d => ({
-    date: d.date,
-    close: d.close,
-    volume: d.volume,
-  })) || [];
-
-  const minPrice = chartPoints.length ? Math.min(...chartPoints.map(d => d.close)) : 0;
-  const maxPrice = chartPoints.length ? Math.max(...chartPoints.map(d => d.close)) : 0;
-  const priceBuffer = (maxPrice - minPrice) * 0.1;
-
+  const chartPoints = chartData || [];
   const firstPrice = chartPoints[0]?.close || 0;
   const lastPrice = chartPoints[chartPoints.length - 1]?.close || 0;
   const chartChange = lastPrice - firstPrice;
@@ -63,6 +37,19 @@ export function StockQuote() {
       color="green"
       headerRight={
         <div className="flex items-center gap-1">
+          {/* Chart type toggle */}
+          <button
+            onClick={() => setChartMode(m => m === 'area' ? 'candlestick' : 'area')}
+            className={`px-1.5 py-0.5 text-xs rounded transition-colors ${
+              chartMode === 'candlestick'
+                ? 'bg-bbg-amber text-bbg-black font-bold'
+                : 'text-bbg-muted hover:text-bbg-amber hover:bg-bbg-amber/10'
+            }`}
+            title="Toggle candlestick/area chart"
+          >
+            {chartMode === 'candlestick' ? 'OHLC' : 'LINE'}
+          </button>
+          <span className="text-bbg-border mx-0.5">|</span>
           {TIME_RANGES.map(r => (
             <button
               key={r}
@@ -112,62 +99,18 @@ export function StockQuote() {
           ) : null}
         </div>
 
-        {/* Chart */}
-        <div className="flex-1 min-h-0 px-2 py-2">
+        {/* TradingView Lightweight Chart */}
+        <div className="flex-1 min-h-0 px-1 py-1">
           {chartLoading || !chartPoints.length ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-bbg-muted text-xs animate-pulse">LOADING CHART DATA...</div>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartPoints} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: '#666666', fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                  tickFormatter={(v) => {
-                    const d = new Date(v);
-                    if (range === '1D') return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                    if (range === '1W' || range === '1M') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-                  }}
-                />
-                <YAxis
-                  tick={{ fill: '#666666', fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={60}
-                  domain={[minPrice - priceBuffer, maxPrice + priceBuffer]}
-                  tickFormatter={(v) => `$${formatPrice(v)}`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <ReferenceLine
-                  y={firstPrice}
-                  stroke="#444444"
-                  strokeDasharray="4 4"
-                  strokeWidth={1}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="close"
-                  stroke={chartColor}
-                  strokeWidth={2}
-                  fill="url(#chartGradient)"
-                  dot={false}
-                  activeDot={{ r: 3, fill: chartColor, strokeWidth: 0 }}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <TVChart
+              data={chartPoints}
+              chartType={chartMode}
+              isPositive={isPositive}
+            />
           )}
         </div>
 

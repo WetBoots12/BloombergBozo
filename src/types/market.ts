@@ -101,6 +101,41 @@ export interface WatchlistItem {
   notes?: string;
 }
 
+// SEC EDGAR
+export interface SECFiling {
+  accessionNumber: string;
+  filingDate: string;
+  reportDate: string;
+  form: string;
+  primaryDocument: string;
+  primaryDocDescription: string;
+  filingUrl: string;
+}
+
+export interface InsiderTrade {
+  filingDate: string;
+  ownerName: string;
+  ownerTitle: string;
+  transactionType: 'P' | 'S' | 'A' | 'D' | 'M';
+  shares: number;
+  pricePerShare: number;
+  totalValue: number;
+  sharesOwned: number;
+}
+
+// DBnomics
+export interface DBnomicsSeries {
+  id: string;
+  name: string;
+  value: number;
+  previousValue: number;
+  change: number;
+  changeDir: 'up' | 'down' | 'flat';
+  period: string;
+  source: string;
+  frequency: string;
+}
+
 export type PanelType =
   | 'market'
   | 'quote'
@@ -108,7 +143,8 @@ export type PanelType =
   | 'crypto'
   | 'forex'
   | 'watchlist'
-  | 'economic';
+  | 'economic'
+  | 'filings';
 
 export type TimeRange = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | '5Y';
 

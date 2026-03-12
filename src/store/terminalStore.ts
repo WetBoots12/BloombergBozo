@@ -134,6 +134,10 @@ export const useTerminalStore = create<TerminalState>()(
           set({ topLeftPanel: 'market' });
           return;
         }
+        if (cleaned === 'DES' || cleaned === 'OWN' || cleaned === 'FA' || cleaned === 'FILINGS' || cleaned === 'SEC') {
+          set({ bottomRightPanel: 'filings' });
+          return;
+        }
 
         // Treat as ticker symbol
         if (/^[A-Z.]{1,10}$/.test(cleaned)) {

@@ -12,6 +12,7 @@ import { CryptoDashboard } from './components/panels/CryptoDashboard';
 import { ForexPanel } from './components/panels/ForexPanel';
 import { WatchlistPanel } from './components/panels/WatchlistPanel';
 import { EconomicPanel } from './components/panels/EconomicPanel';
+import { FilingsPanel } from './components/panels/FilingsPanel';
 import { useTerminalStore } from './store/terminalStore';
 import type { PanelType } from './types/market';
 
@@ -34,6 +35,7 @@ function PanelRenderer({ type }: { type: PanelType }) {
     case 'forex': return <ForexPanel />;
     case 'watchlist': return <WatchlistPanel />;
     case 'economic': return <EconomicPanel />;
+    case 'filings': return <FilingsPanel />;
     default: return <MarketOverview />;
   }
 }
