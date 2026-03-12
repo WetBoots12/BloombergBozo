@@ -4,11 +4,35 @@ import { useEconomicIndicators, useGlobalMacro } from '../../hooks/useEconomic';
 import { MOCK_ECONOMIC } from '../../services/mockData';
 import type { EconomicIndicator, DBnomicsSeries } from '../../types/market';
 
-function EcoRow({ indicator }: { indicator: EconomicIndicator }) {
-  const isUp = indicator.changeDir === 'up';
+// Unified row that handles both EconomicIndicator (FRED) and DBnomicsSeries (DBnomics)
+type AnyIndicator = EconomicIndicator | DBnomicsSeries;
+
+function isDBnomics(ind: AnyIndicator): ind is DBnomicsSeries {
+  return typeof (ind as DBnomicsSeries).value === 'number';
+}
+
+function EcoRow({ indicator }: { indicator: AnyIndicator }) {
+  const isUp   = indicator.changeDir === 'up';
   const isDown = indicator.changeDir === 'down';
   const changeColor = isUp ? '#00FF41' : isDown ? '#FF3131' : '#666666';
   const arrow = isUp ? '▲' : isDown ? '▼' : '–';
+
+  let valueStr: string;
+  let changeStr: string;
+
+  if (isDBnomics(indicator)) {
+    const fmt = (v: number) => {
+      if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+      if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+      if (Math.abs(v) < 10)         return v.toFixed(2);
+      return v.toFixed(1);
+    };
+    valueStr  = fmt(indicator.value);
+    changeStr = indicator.change !== 0 ? fmt(Math.abs(indicator.change)) : '–';
+  } else {
+    valueStr  = indicator.value;
+    changeStr = indicator.change;
+  }
 
   return (
     <div className="flex items-center px-3 py-2 border-b border-bbg-border/40 hover:bg-bbg-panel-alt transition-colors text-xs">
@@ -16,39 +40,10 @@ function EcoRow({ indicator }: { indicator: EconomicIndicator }) {
         <div className="text-bbg-text truncate">{indicator.name}</div>
         <div className="text-bbg-muted mt-0.5">{indicator.period} · {indicator.source}</div>
       </div>
-      <div className="w-20 text-right flex-shrink-0">
-        <div className="text-bbg-amber font-bold tabular-nums">{indicator.value}</div>
-        <div className="tabular-nums" style={{ color: changeColor }}>
-          {arrow} {indicator.change}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DBnomicsRow({ series }: { series: DBnomicsSeries }) {
-  const isUp = series.changeDir === 'up';
-  const isDown = series.changeDir === 'down';
-  const changeColor = isUp ? '#00FF41' : isDown ? '#FF3131' : '#666666';
-  const arrow = isUp ? '▲' : isDown ? '▼' : '–';
-
-  const formatValue = (v: number) => {
-    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-    if (Math.abs(v) < 10) return v.toFixed(2);
-    return v.toFixed(1);
-  };
-
-  return (
-    <div className="flex items-center px-3 py-2 border-b border-bbg-border/40 hover:bg-bbg-panel-alt transition-colors text-xs">
-      <div className="flex-1 min-w-0">
-        <div className="text-bbg-text truncate">{series.name}</div>
-        <div className="text-bbg-muted mt-0.5">{series.period} · {series.source}</div>
-      </div>
       <div className="w-24 text-right flex-shrink-0">
-        <div className="text-bbg-amber font-bold tabular-nums">{formatValue(series.value)}</div>
+        <div className="text-bbg-amber font-bold tabular-nums">{valueStr}</div>
         <div className="tabular-nums" style={{ color: changeColor }}>
-          {arrow} {series.change !== 0 ? formatValue(Math.abs(series.change)) : '–'}
+          {arrow} {changeStr}
         </div>
       </div>
     </div>
@@ -76,7 +71,7 @@ export function EconomicPanel() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-3 py-1.5 text-xs text-bbg-muted bg-bbg-panel-alt border-b border-bbg-border">
-            ── US MACROECONOMIC DATA {useLiveData ? '(LIVE — DBNOMICS)' : '(DEMO)'}
+            ── US MACROECONOMIC DATA {useLiveData ? '(LIVE — FRED / DBNOMICS)' : '(DEMO)'}
           </div>
 
           {liveLoading ? (
@@ -84,8 +79,8 @@ export function EconomicPanel() {
               {Array(6).fill(0).map((_, i) => <Skeleton key={i} height="14px" />)}
             </div>
           ) : useLiveData ? (
-            liveIndicators.map((series, i) => (
-              <DBnomicsRow key={i} series={series} />
+            liveIndicators.map((ind, i) => (
+              <EcoRow key={i} indicator={ind} />
             ))
           ) : (
             mockIndicators.map((ind, i) => (
@@ -99,7 +94,7 @@ export function EconomicPanel() {
                 ── GLOBAL MACRO (IMF/WORLD BANK)
               </div>
               {globalMacro.map((series, i) => (
-                <DBnomicsRow key={i} series={series} />
+                <EcoRow key={i} indicator={series} />
               ))}
             </>
           )}
@@ -136,7 +131,7 @@ export function EconomicPanel() {
         </div>
 
         <div className="px-3 py-1.5 border-t border-bbg-border text-xs text-bbg-muted flex-shrink-0 flex justify-between">
-          <span>DATA: {useLiveData ? 'DBNOMICS (FRED/IMF/ECB)' : 'BLS, BEA, FED, CENSUS'}</span>
+          <span>DATA: {useLiveData ? 'FRED API / DBNOMICS (IMF/ECB)' : 'BLS, BEA, FED, CENSUS'}</span>
           <span className={useLiveData ? 'text-bbg-green' : 'text-bbg-amber'}>
             {useLiveData ? 'LIVE' : 'DEMO MODE'}
           </span>

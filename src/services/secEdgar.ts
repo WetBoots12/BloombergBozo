@@ -6,9 +6,11 @@ import type { SECFiling, InsiderTrade } from '../types/market';
 const BASE_URL = 'https://data.sec.gov';
 const EFTS_URL = 'https://efts.sec.gov/LATEST';
 
+const SEC_EMAIL = import.meta.env.VITE_SEC_EMAIL || 'bloomberg-bozo-terminal@example.com';
+
 const http = axios.create({
   headers: {
-    'User-Agent': 'BloombergBozo/1.0 (bloomberg-bozo-terminal@example.com)',
+    'User-Agent': `BloombergBozo/1.0 (${SEC_EMAIL})`,
     'Accept': 'application/json',
   },
 });

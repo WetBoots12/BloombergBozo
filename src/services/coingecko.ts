@@ -3,6 +3,7 @@ import type { CryptoAsset, CryptoGlobal } from '../types/market';
 import { MOCK_CRYPTO, MOCK_CRYPTO_GLOBAL } from './mockData';
 
 const BASE_URL = 'https://api.coingecko.com/api/v3';
+const DEMO_KEY = import.meta.env.VITE_COINGECKO_KEY || '';
 
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 
@@ -12,14 +13,13 @@ async function fetchWithCache<T>(url: string, ttl = 60_000): Promise<T> {
     return cached.data as T;
   }
   try {
-    const response = await axios.get<T>(url, {
-      headers: { 'Accept': 'application/json' },
-      timeout: 10000,
-    });
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
+    if (DEMO_KEY) headers['x-cg-demo-api-key'] = DEMO_KEY;
+    const response = await axios.get<T>(url, { headers, timeout: 10000 });
     cache.set(url, { data: response.data, timestamp: Date.now() });
     return response.data;
   } catch (err) {
-    if (cached) return cached.data as T; // Return stale cache on error
+    if (cached) return cached.data as T;
     throw err;
   }
 }

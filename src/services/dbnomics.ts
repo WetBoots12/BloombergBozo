@@ -1,9 +1,9 @@
 import axios from 'axios';
 import type { DBnomicsSeries } from '../types/market';
 
-// DBnomics API - completely free, no API key required
-// Aggregates data from IMF, World Bank, ECB, FRED, and hundreds of other sources
+// DBnomics API - free with optional API key for higher limits
 const BASE_URL = 'https://api.db.nomics.world/v22';
+const DBNOMICS_KEY = import.meta.env.VITE_DBNOMICS_KEY || '';
 
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL = 10 * 60_000; // 10 minutes
@@ -13,7 +13,9 @@ async function cachedGet<T>(url: string): Promise<T> {
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data as T;
   }
-  const { data } = await axios.get<T>(url);
+  const headers: Record<string, string> = {};
+  if (DBNOMICS_KEY) headers['Authorization'] = `Bearer ${DBNOMICS_KEY}`;
+  const { data } = await axios.get<T>(url, { headers });
   cache.set(url, { data, timestamp: Date.now() });
   return data;
 }
