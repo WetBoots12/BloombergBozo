@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PanelType } from '../types/market';
+import type { BloombergFunction } from '../types/bloomberg';
+import { parseBloombergCommand } from '../services/bloombergCommands';
 
 interface TerminalState {
   // Active security being viewed
   activeTicker: string;
+
+  // Current Bloomberg function being executed
+  activeFunction: BloombergFunction;
 
   // Bottom-right panel type (switchable)
   bottomRightPanel: PanelType;
@@ -21,9 +26,11 @@ interface TerminalState {
   // UI state
   commandInput: string;
   isHelpOpen: boolean;
+  isApiSettingsOpen: boolean;
 
   // Actions
   setActiveTicker: (ticker: string) => void;
+  setActiveFunction: (func: BloombergFunction) => void;
   setBottomRightPanel: (panel: PanelType) => void;
   setTopLeftPanel: (panel: PanelType) => void;
   addToWatchlist: (ticker: string) => void;
@@ -32,6 +39,7 @@ interface TerminalState {
   setCommandInput: (input: string) => void;
   navigateHistory: (dir: 'up' | 'down') => string;
   toggleHelp: () => void;
+  toggleApiSettings: () => void;
   executeCommand: (input: string) => void;
 }
 
@@ -39,6 +47,7 @@ export const useTerminalStore = create<TerminalState>()(
   persist(
     (set, get) => ({
       activeTicker: 'AAPL',
+      activeFunction: 'GO',
       bottomRightPanel: 'crypto',
       topLeftPanel: 'market',
       watchlist: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'GOOGL', 'AMZN'],
@@ -46,8 +55,11 @@ export const useTerminalStore = create<TerminalState>()(
       historyIndex: -1,
       commandInput: '',
       isHelpOpen: false,
+      isApiSettingsOpen: false,
 
       setActiveTicker: (ticker) => set({ activeTicker: ticker.toUpperCase() }),
+
+      setActiveFunction: (func) => set({ activeFunction: func }),
 
       setBottomRightPanel: (panel) => set({ bottomRightPanel: panel }),
 
@@ -101,6 +113,8 @@ export const useTerminalStore = create<TerminalState>()(
 
       toggleHelp: () => set({ isHelpOpen: !get().isHelpOpen }),
 
+      toggleApiSettings: () => set({ isApiSettingsOpen: !get().isApiSettingsOpen }),
+
       executeCommand: (input) => {
         const raw = input.trim().toUpperCase();
         if (!raw) return;
@@ -108,53 +122,57 @@ export const useTerminalStore = create<TerminalState>()(
         get().pushCommand(raw);
         set({ commandInput: '' });
 
-        // Parse Bloomberg-style commands
-        // Strip suffixes like <EQUITY>, <CRYPTO>, etc.
-        const cleaned = raw
-          .replace(/<EQUITY>/g, '')
-          .replace(/<CRYPTO>/g, '')
-          .replace(/<INDEX>/g, '')
-          .replace(/<GO>/g, '')
-          .trim();
+        // Parse using Bloomberg command parser
+        const parsed = parseBloombergCommand(raw);
 
-        // Named commands
-        if (cleaned === 'HELP' || cleaned === 'H' || cleaned === '?') {
+        // Handle API settings command
+        if (raw === 'API' || raw === 'KEYS' || raw === 'SETTINGS') {
+          set({ isApiSettingsOpen: true });
+          return;
+        }
+
+        // Handle HELP
+        if (parsed.func === 'HELP') {
           set({ isHelpOpen: true });
           return;
         }
-        if (cleaned === 'NEWS' || cleaned === 'N') {
-          set({ bottomRightPanel: 'news', topLeftPanel: 'market' });
-          return;
-        }
-        if (cleaned === 'CRYPTO' || cleaned === 'CRYP' || cleaned === 'BTC') {
-          set({ bottomRightPanel: 'crypto' });
-          if (cleaned === 'BTC') set({ activeTicker: 'BTC' });
-          return;
-        }
-        if (cleaned === 'FX' || cleaned === 'FOREX' || cleaned === 'CCY') {
-          set({ bottomRightPanel: 'forex' });
-          return;
-        }
-        if (cleaned === 'WLT' || cleaned === 'WATCH' || cleaned === 'WATCHLIST') {
-          set({ bottomRightPanel: 'watchlist' });
-          return;
-        }
-        if (cleaned === 'ECO' || cleaned === 'ECON' || cleaned === 'MACRO') {
-          set({ bottomRightPanel: 'economic' });
-          return;
-        }
-        if (cleaned === 'MKT' || cleaned === 'MARKET' || cleaned === 'WM') {
-          set({ topLeftPanel: 'market' });
-          return;
-        }
-        if (cleaned === 'DES' || cleaned === 'OWN' || cleaned === 'FA' || cleaned === 'FILINGS' || cleaned === 'SEC') {
-          set({ bottomRightPanel: 'filings' });
+
+        // Handle panel switch commands
+        const panelCommands: Record<string, PanelType> = {
+          'NEWS': 'news',
+          'CRYPTO': 'crypto',
+          'FX': 'forex',
+          'FOREX': 'forex',
+          'WLT': 'watchlist',
+          'WATCHLIST': 'watchlist',
+          'ECON': 'economic',
+          'ECONOMIC': 'economic',
+          'FILINGS': 'filings',
+        };
+
+        if (panelCommands[parsed.func]) {
+          set({ bottomRightPanel: panelCommands[parsed.func] });
+          if (parsed.ticker) set({ activeTicker: parsed.ticker });
           return;
         }
 
-        // Treat as ticker symbol
-        if (/^[A-Z.]{1,10}$/.test(cleaned)) {
-          set({ activeTicker: cleaned, topLeftPanel: 'market' });
+        if (parsed.func === 'MARKET') {
+          set({ topLeftPanel: 'market' });
+          return;
+        }
+
+        // Handle ticker-based functions - set active ticker and function
+        if (parsed.ticker || ['GO', 'DES', 'FA', 'ANR', 'E', 'CN', 'OWN', 'FILINGS'].includes(parsed.func)) {
+          set({
+            activeTicker: parsed.ticker || get().activeTicker,
+            activeFunction: parsed.func,
+          });
+          return;
+        }
+
+        // Handle standalone ticker (defaults to GO function)
+        if (/^[A-Z.]{1,10}$/.test(raw)) {
+          set({ activeTicker: raw, activeFunction: 'GO', topLeftPanel: 'market' });
         }
       },
     }),

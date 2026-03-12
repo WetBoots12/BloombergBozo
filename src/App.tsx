@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { FunctionBar } from './components/layout/FunctionBar';
 import { CommandBar } from './components/layout/CommandBar';
 import { HelpOverlay } from './components/layout/HelpOverlay';
+import { ApiSettings } from './components/layout/ApiSettings';
 import { MarketOverview } from './components/panels/MarketOverview';
 import { StockQuote } from './components/panels/StockQuote';
 import { NewsPanel } from './components/panels/NewsPanel';
@@ -13,6 +14,7 @@ import { ForexPanel } from './components/panels/ForexPanel';
 import { WatchlistPanel } from './components/panels/WatchlistPanel';
 import { EconomicPanel } from './components/panels/EconomicPanel';
 import { FilingsPanel } from './components/panels/FilingsPanel';
+import { FunctionDispatcher } from './components/functions/FunctionDispatcher';
 import { useTerminalStore } from './store/terminalStore';
 import type { PanelType } from './types/market';
 
@@ -41,7 +43,7 @@ function PanelRenderer({ type }: { type: PanelType }) {
 }
 
 function Terminal() {
-  const { bottomRightPanel, topLeftPanel, toggleHelp } = useTerminalStore();
+  const { bottomRightPanel, topLeftPanel, toggleHelp, isApiSettingsOpen, toggleApiSettings, activeFunction } = useTerminalStore();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -50,7 +52,10 @@ function Terminal() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [toggleHelp]);
+  }, [toggleHelp, toggleApiSettings]);
+
+  // Determine if we should show a Bloomberg function overlay
+  const showFunctionOverlay = ['DES', 'FA', 'ANR', 'E'].includes(activeFunction);
 
   return (
     <div className="flex flex-col w-full h-full bg-bbg-black overflow-hidden">
@@ -68,7 +73,13 @@ function Terminal() {
             <PanelGroup orientation="vertical" className="h-full">
               {/* Top Left: Switchable (Market Overview or Watchlist) */}
               <ResizablePanel defaultSize={55} minSize={25}>
-                <PanelRenderer type={topLeftPanel} />
+                {showFunctionOverlay ? (
+                  <div className="h-full">
+                    <FunctionDispatcher />
+                  </div>
+                ) : (
+                  <PanelRenderer type={topLeftPanel} />
+                )}
               </ResizablePanel>
 
               <PanelResizeHandle className="h-1 bg-bbg-border hover:bg-bbg-orange transition-colors cursor-row-resize" />
@@ -87,14 +98,14 @@ function Terminal() {
             <PanelGroup orientation="vertical" className="h-full">
               {/* Top Right: Stock Quote/Chart */}
               <ResizablePanel defaultSize={60} minSize={30}>
-                <StockQuote />
+                {!showFunctionOverlay && <StockQuote />}
               </ResizablePanel>
 
               <PanelResizeHandle className="h-1 bg-bbg-border hover:bg-bbg-orange transition-colors cursor-row-resize" />
 
               {/* Bottom Right: Switchable (Crypto, Forex, Watchlist, Economic) */}
               <ResizablePanel defaultSize={40} minSize={20}>
-                <PanelRenderer type={bottomRightPanel} />
+                {!showFunctionOverlay && <PanelRenderer type={bottomRightPanel} />}
               </ResizablePanel>
             </PanelGroup>
           </ResizablePanel>
@@ -106,6 +117,7 @@ function Terminal() {
 
       {/* Overlays */}
       <HelpOverlay />
+      {isApiSettingsOpen && <ApiSettings onClose={toggleApiSettings} />}
     </div>
   );
 }

@@ -8,7 +8,7 @@ interface FnKey {
 }
 
 export function FunctionBar() {
-  const { setTopLeftPanel, setBottomRightPanel, toggleHelp } = useTerminalStore();
+  const { setTopLeftPanel, setBottomRightPanel, toggleHelp, toggleApiSettings } = useTerminalStore();
 
   const fnKeys: FnKey[] = [
     { key: 'F1', label: 'HELP', action: toggleHelp },
@@ -19,6 +19,7 @@ export function FunctionBar() {
     { key: 'F6', label: 'WLT', action: () => setBottomRightPanel('watchlist' as PanelType) },
     { key: 'F7', label: 'ECO', action: () => setBottomRightPanel('economic' as PanelType) },
     { key: 'F8', label: 'SEC', action: () => setBottomRightPanel('filings' as PanelType) },
+    { key: 'F9', label: 'API', action: toggleApiSettings },
   ];
 
   return (
@@ -40,7 +41,8 @@ export function FunctionBar() {
       ))}
       <div className="flex-1" />
       <div className="flex items-center px-3 text-xs text-bbg-muted border-l border-bbg-border">
-        Type ticker + ENTER to look up security &nbsp; | &nbsp; HELP for commands
+        <span className="text-bbg-amber font-bold mr-2">PHASE 1</span>
+        Type ticker + function (e.g., AAPL DES) &nbsp; | &nbsp; HELP for commands
       </div>
     </div>
   );
